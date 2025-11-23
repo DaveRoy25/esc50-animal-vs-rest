@@ -1,5 +1,13 @@
 import os
 import pandas as pd
+import matplotlib.pyplot as plt
+import librosa.display
+import numpy as np
+from tqdm import tqdm
+import tkinter as tk
+from tkinter import messagebox
+
+
 
 
 #Ensures histogram output folders exist and returns their paths
@@ -10,7 +18,6 @@ def ensure_output_dirs(base_out_dir: str) -> dict:
     os.makedirs(animal_dir, exist_ok=True)
     os.makedirs(non_animal_dir, exist_ok=True)
     return {"animal": animal_dir, "non_animal": non_animal_dir}
-
 
 #creates 2 txt files with the names of the .wav files split into animal and non-animal categories 
 def categorize_sounds(csv_path: str, out_dir: str) -> None:
@@ -37,9 +44,64 @@ def categorize_sounds(csv_path: str, out_dir: str) -> None:
     print(f"non-animals: {len(non_animals)} files -> {non_list}")
 
      # Optional quick sanity check
-    print("\nExample rows (first 3 animals, first 3 non-animals):")
-    print(meta.loc[is_animal, ["filename", "target", "category"]].head(3))
-    print(meta.loc[~is_animal, ["filename", "target", "category"]].head(3))
+    #print("\nExample rows (first 3 animals, first 3 non-animals):")
+    #print(meta.loc[is_animal, ["filename", "target", "category"]].head(3))
+    #print(meta.loc[~is_animal, ["filename", "target", "category"]].head(3))
+
+    return animals, non_animals
+
+#Finds the correct full path to a given .wav file inside the dataset folder
+def resolve_wav_path(data_dir: str, filename: str) -> str:
+    p1 = os.path.join(data_dir, filename)
+    p2 = os.path.join(data_dir, "audio", filename)
+    if os.path.exists(p1): return p1
+    if os.path.exists(p2): return p2
+    raise FileNotFoundError(f"Missing WAV: {filename}")
+
+#Generates and saves a Mel-spectrogram image from a waveform.
+def save_spectrogram(y: np.ndarray, sr: int, out_png: str, title: str = ""):
+    """Saves a spectrogram (heatmap-style) from a waveform."""
+    plt.figure(figsize=(6, 2))
+    S = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=128)
+    S_dB = librosa.power_to_db(S, ref=np.max)
+    librosa.display.specshow(S_dB, sr=sr, x_axis='time', y_axis='mel', cmap='magma')
+    plt.colorbar(format="%+2.0f dB")
+    if title:
+        plt.title(title)
+    os.makedirs(os.path.dirname(out_png), exist_ok=True)
+    plt.tight_layout()
+    plt.savefig(out_png, dpi=120, bbox_inches='tight', pad_inches=0)
+    plt.close()
+
+# Builds spectrograms for all animal and non-animal sounds
+def build_all(csv_path: str, data_dir: str, out_dir: str):
+    out_dirs = ensure_output_dirs(out_dir)
+    animal_files, non_animal_files = categorize_sounds(csv_path, out_dir)
+
+    # animals
+    print(f"\nGenerating spectrograms for {len(animal_files)} animal sounds...")
+    for fn in tqdm(animal_files,desc="Animal files",unit = "file"):
+        wav = resolve_wav_path(data_dir, fn)
+        y, sr = librosa.load(wav, sr=None)
+        out_png = os.path.join(out_dirs["animal"], fn.replace(".wav", ".png"))
+        save_spectrogram(y, sr, out_png, title=f"animal • {fn}")
+
+    # non-animals
+    for fn in tqdm(non_animal_files,desc="Non-animal files",unit = "file"):
+        wav = resolve_wav_path(data_dir, fn)
+        y, sr = librosa.load(wav, sr=None)
+        out_png = os.path.join(out_dirs["non_animal"], fn.replace(".wav", ".png"))
+        save_spectrogram(y, sr, out_png, title=f"non-animal • {fn}")
+
+# Alert popup to inform user about processing time
+def alert_popup():
+    root = tk.Tk()
+    root.withdraw()  # hide main window
+    messagebox.showinfo(
+        "Processing Notice",
+        "Creating spectrograms will take several minutes (about 10 minutes).\nPlease be patient!"
+    )
+    root.destroy()
 
 #main function for histogram creating
 def main():
@@ -50,8 +112,12 @@ def main():
         print(f"  {k}: {p} (exists={os.path.isdir(p)})")
     
     #categorise sounds into animal and non-animal lists
-    csv_local = "data/esc50.csv"
-    categorize_sounds(csv_local, "output_histograms")
+    CSV_PATH  = "data/esc50.csv"
+    DATA_DIR = "data/audio"
+    OUT_DIR  = "output_histograms"
+    #categorize_sounds(CSV_PATH , OUT_DIR)
+    alert_popup()
+    build_all(CSV_PATH, DATA_DIR, OUT_DIR)
 
 if __name__ == "__main__":
     main()
