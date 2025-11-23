@@ -1,0 +1,7 @@
+os
+pandas
+matplotlib
+librosa
+numpy
+tqdm
+tkinter
