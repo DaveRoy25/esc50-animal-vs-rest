@@ -3,5 +3,5 @@ Binary classifier on ESC-50 (animals vs. all other classes) using log-mel/MFCC f
 
 
 ## Download audio files
-###### please make sure all audio files are in "data/audio"
+###### please make sure all audio files are in "\data\audio"
 [Download ZIP from MEGA](https://mega.nz/file/asYiHAKb#s_QnaRel3TRwpdcIiCijfM3x4XwAEnFB3EQTuGnOvSs)
