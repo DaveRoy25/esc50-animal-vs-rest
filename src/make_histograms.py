@@ -94,13 +94,10 @@ def build_all(csv_path: str, data_dir: str, out_dir: str):
         save_spectrogram(y, sr, out_png, title=f"non-animal • {fn}")
 
 # Alert popup to inform user about processing time
-def alert_popup():
+def alert_popup(title: str , message: str ):
     root = tk.Tk()
     root.withdraw()  # hide main window
-    messagebox.showinfo(
-        "Processing Notice",
-        "Creating spectrograms will take several minutes (about 10 minutes).\nPlease be patient!"
-    )
+    messagebox.showwarning(title, message)
     root.destroy()
 
 #main function for histogram creating
@@ -116,7 +113,16 @@ def main():
     DATA_DIR = "data/audio"
     OUT_DIR  = "output_histograms"
     #categorize_sounds(CSV_PATH , OUT_DIR)
-    alert_popup()
+# Check if the data/audio folder exists or contains WAVs
+    if not os.path.exists(DATA_DIR) or not any(f.endswith(".wav") for f in os.listdir(DATA_DIR)):
+        alert_popup(
+            "Audio Files Missing",
+            r"No audio files were found in the '\data\audio' folder.""\n\n"
+            r"Please make sure the ESC-50 dataset is extracted and the .wav files are placed inside '\data\audio'."
+        )
+        return  # Stop execution so the script doesn’t fail later
+
+    alert_popup("Processing Notice","Creating spectrograms will take several minutes (about 10 minutes).\nPlease be patient!")
     build_all(CSV_PATH, DATA_DIR, OUT_DIR)
 
 if __name__ == "__main__":
