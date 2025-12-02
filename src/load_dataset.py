@@ -45,6 +45,7 @@ def load_dataset(base_dir="output_histograms", img_size=(128,128), batch_size=32
         image_size=img_size,   # resize all images to the same size
         batch_size=batch_size  # number of images per batch
     )
+    print("\n\nClass mapping:", train_ds.class_names)
 
     # ----------------------------------------
     # Create the validation dataset.
@@ -68,12 +69,17 @@ def load_dataset(base_dir="output_histograms", img_size=(128,128), batch_size=32
     # ----------------------------------------
     AUTOTUNE = tf.data.AUTOTUNE
     train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
-    val_ds = val_ds.cache().prefetch(buffer_size=AUTOTUNE)
+    val_ds = val_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
 
-    # Print dataset info for confirmation
-    print("✅ Dataset loaded successfully:")
-    print(f"  Training batches:   {len(train_ds)}")
-    print(f"  Validation batches: {len(val_ds)}")
+    #class_names = train_ds.class_names if hasattr(train_ds, "class_names") else None
+
 
     # Return both datasets to be used later for model training
     return train_ds, val_ds
+
+if __name__ == "__main__":
+        train_ds, val_ds = load_dataset("output_histograms")
+        print("\nDataset loaded successfully\n***************************\n")
+        print("  Training batches:", train_ds.cardinality().numpy())
+        print("  Validation batches:", val_ds.cardinality().numpy())
+
