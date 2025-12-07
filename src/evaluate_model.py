@@ -28,6 +28,10 @@ def evaluate_model(model_path="animal_classifier.h5", data_dir="output_histogram
         image_size=img_size,
         batch_size=32
     )
+    class_names = val_ds.class_names
+    val_ds = val_ds.shuffle(buffer_size=1000, reshuffle_each_iteration=True)
+    print("Class names:", class_names)
+
 
     # Evaluate model on validation data
     print("\n Evaluating model...")
@@ -36,10 +40,6 @@ def evaluate_model(model_path="animal_classifier.h5", data_dir="output_histogram
     print(f"Validation Loss: {test_loss:.4f}\n")
 
     # Pick a few random examples from validation set to visualize predictions
-    class_names = val_ds.class_names
-    print(f"\n\nClass names: {class_names}\n")
-    print("Class names:", val_ds.class_names)
-
     plt.figure(figsize=(10, 10))
     for images, labels in val_ds.take(1):
         predictions = model.predict(images)
