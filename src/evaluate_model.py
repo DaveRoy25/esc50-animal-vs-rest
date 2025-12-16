@@ -2,6 +2,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import pandas as pd
 
 def evaluate_model(model_path="animal_classifier.h5", data_dir="output_histograms", img_size=(128,128)):
     """
@@ -12,7 +13,9 @@ def evaluate_model(model_path="animal_classifier.h5", data_dir="output_histogram
         data_dir (str): Folder containing spectrogram subfolders.
         img_size (tuple): Target image size for preprocessing.
     """
-
+    meta = pd.read_csv("data/esc50.csv")
+    filename_to_category = dict(zip(meta["filename"], meta["category"]))
+     
     # Load the trained model
     print("Loading trained model...")
     model = tf.keras.models.load_model(model_path)
@@ -26,48 +29,70 @@ def evaluate_model(model_path="animal_classifier.h5", data_dir="output_histogram
         subset="validation",
         seed=42,
         image_size=img_size,
-        batch_size=32
+        batch_size=32,
+        shuffle=False  # IMPORTANT: keep stable for evaluation
     )
+
     class_names = val_ds.class_names
-    val_ds = val_ds.shuffle(buffer_size=1000, reshuffle_each_iteration=True)
+    file_paths = val_ds.file_paths  # aligned with shuffle=False
+
     print("Class names:", class_names)
 
-
     # Evaluate model on validation data
-    print("\n Evaluating model...")
-    test_loss, test_acc = model.evaluate(val_ds)
+    print("\nEvaluating model...")
+    test_loss, test_acc = model.evaluate(val_ds, verbose=1)
     print(f"\nValidation Accuracy: {test_acc*100:.2f}%")
     print(f"Validation Loss: {test_loss:.4f}\n")
 
-    # Pick a few random examples from validation set to visualize predictions
-    plt.figure(figsize=(10, 10))
-    for images, labels in val_ds.take(1):
-        predictions = model.predict(images)
-  # If model is binary (sigmoid), convert probabilities to class 0/1
-        if predictions.shape[1] == 1:
-            predicted_labels = (predictions > 0.5).astype(int).flatten()
-        else:
-            # If model outputs 2-class softmax
-            predicted_labels = np.argmax(predictions, axis=1)
-        
-        # Optional debug print
-        print("\nSample predictions:", predictions[:10].flatten())
-        print("Predicted labels:", predicted_labels[:10])
-        print("True labels:", labels[:10].numpy())
+    # pick 9 random files from the validation file list
+    n_show = 9
+    idx = np.random.choice(len(file_paths), size=n_show, replace=False)
+    chosen_paths = [file_paths[i] for i in idx]
 
-        for i in range(9):
-            ax = plt.subplot(3, 3, i + 1)
-            plt.imshow(images[i].numpy().astype("uint8"))
+    # Load those images from disk (so names and images match 100%
+    imgs = []
+    true_labels = []
+    for p in chosen_paths:
+        # true label from folder name
+        folder = os.path.basename(os.path.dirname(p))
+        true_labels.append(class_names.index(folder))
 
-            true_label = class_names[labels[i]]
-            pred_label = class_names[predicted_labels[i]]
+        img = tf.keras.utils.load_img(p, target_size=img_size)
+        img = tf.keras.utils.img_to_array(img)
+        imgs.append(img)
 
-            color = "green" if true_label == pred_label else "red"
-            plt.title(f"P: {pred_label}\nT: {true_label}", color=color)
-            plt.axis("off")
+    images = np.stack(imgs, axis=0)
+
+    # # If model is binary (sigmoid), convert probabilities to class 0/1
+    preds = model.predict(images)
+    if preds.shape[1] == 1:
+        pred_labels = (preds > 0.5).astype(int).flatten()
+        probs = preds.flatten()
+    else:
+        # If model outputs 2-class softmax
+        pred_labels = np.argmax(preds, axis=1)
+        probs = np.max(preds, axis=1)
+
+    # Plot
+    plt.figure(figsize=(12, 10))
+    for i in range(n_show):
+        ax = plt.subplot(3, 3, i + 1)
+        plt.imshow(images[i].astype("uint8"))
+
+        filename_png = os.path.basename(chosen_paths[i])
+        filename_wav = filename_png.replace(".png", ".wav")
+        sound_name = filename_to_category.get(filename_wav, "Unknown")
+
+        t = class_names[true_labels[i]]
+        p = class_names[pred_labels[i]]
+        color = "green" if t == p else "red"
+
+        plt.title(f"{filename_wav}\n({sound_name})\nP: {p} ({probs[i]:.2f}) | T: {t}",
+                  color=color, fontsize=8)
+        plt.axis("off")
+
     plt.tight_layout()
     plt.show()
-
 
 if __name__ == "__main__":
     evaluate_model()
