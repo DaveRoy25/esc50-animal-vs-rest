@@ -61,17 +61,21 @@ def resolve_wav_path(data_dir: str, filename: str) -> str:
 #Generates and saves a Mel-spectrogram image from a waveform.
 def save_spectrogram(y: np.ndarray, sr: int, out_png: str, title: str = ""):
     """Saves a spectrogram (heatmap-style) from a waveform."""
-    plt.figure(figsize=(6, 2))
+    plt.figure(figsize=(1.28, 1.28), dpi=100)
     S = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=128)
     S_dB = librosa.power_to_db(S, ref=np.max)
-    librosa.display.specshow(S_dB, sr=sr, x_axis='time', y_axis='mel', cmap='magma')
-    plt.colorbar(format="%+2.0f dB")
+    librosa.display.specshow(S_dB, sr=sr, x_axis=None, y_axis=None, cmap='magma')
+    #plt.colorbar(format="%+2.0f dB")
     if title:
         plt.title(title)
     os.makedirs(os.path.dirname(out_png), exist_ok=True)
     plt.tight_layout()
-    plt.savefig(out_png, dpi=120, bbox_inches='tight', pad_inches=0)
+    #plt.savefig(out_png, dpi=120, bbox_inches='tight', pad_inches=0)
+    plt.axis('off')
+    plt.tight_layout(pad=0)
+    plt.savefig(out_png, bbox_inches='tight', pad_inches=0)
     plt.close()
+
 
 # Builds spectrograms for all animal and non-animal sounds
 def build_all(csv_path: str, data_dir: str, out_dir: str):
@@ -84,14 +88,14 @@ def build_all(csv_path: str, data_dir: str, out_dir: str):
         wav = resolve_wav_path(data_dir, fn)
         y, sr = librosa.load(wav, sr=None)
         out_png = os.path.join(out_dirs["animal"], fn.replace(".wav", ".png"))
-        save_spectrogram(y, sr, out_png, title=f"animal • {fn}")
+        save_spectrogram(y, sr, out_png)
 
     # non-animals
     for fn in tqdm(non_animal_files,desc="Non-animal files",unit = "file"):
         wav = resolve_wav_path(data_dir, fn)
         y, sr = librosa.load(wav, sr=None)
         out_png = os.path.join(out_dirs["non_animal"], fn.replace(".wav", ".png"))
-        save_spectrogram(y, sr, out_png, title=f"non-animal • {fn}")
+        save_spectrogram(y, sr, out_png)
 
 # Alert popup to inform user about processing time
 def alert_popup(title: str , message: str ):
